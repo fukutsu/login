@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 
 use App\Task;
 
+use App\User;
+
 
 class TasksController extends Controller
 {
@@ -27,20 +29,13 @@ class TasksController extends Controller
         $data = [];
         if (\Auth::check()){
              $user = \Auth::user();
-            $tasklists = $user->tasklists()->orderBy('created_at', 'desc')->paginate(10);
+            $tasks = $user->tasks()->orderBy('created_at', 'desc')->paginate(10);
             
             $data = [
                   'user' => $user,
-                  'tasklists' => $tasklists,
+                  'tasks' => $tasks,
                 ];
-                $data += $this->counts($user);
                 
-                $tasks = Task::all();
-                
-                return view('tasks.index',[
-                        'tasks' => $tasks,
-                    ]);
-                    
                 return view('tasks.index', $data);
             
         }else{
@@ -76,19 +71,14 @@ class TasksController extends Controller
                 'status' => 'required|max:10',
             ]);
             
-            $task = new Task;
-            $task->content = $request->content;
-            $task->status = $request->status;
-            $task->save();
+           
             
-            return redirect('/');
-            
-             $request->user()->tasklists()->create([
+             $request->user()->tasks()->create([
                     'content' => $request->content,
                     'status' => $request->status,
                 ]);
                 
-                return redirect()->back();
+                return redirect('/');
         
        
     }
@@ -102,23 +92,13 @@ class TasksController extends Controller
     public function show($id)
     {
         
-         $task = Task::find($id);
+        $task = Task::find($id);
         
-        return view('tasks.show',[
-                'task' => $task,
-            ]);
-        
-        $user = User::find($id);
-        $tasklists = $user->tasklists()->orderBy('created_at','desc')->paginate(10);
-        
-        $data = [
-              'user' => $user,
-              'tasklists' => $tasklists,
-            ];
-            
-            $data += $this->counts($user);
-            
-            return view('tasks.show', $data);
+        if ($task->user_id === \Auth::id()){
+            return view('tasks.show',['task' => $task,]);
+        }
+    
+           return redirect('/');
     }
 
     /**
@@ -131,9 +111,11 @@ class TasksController extends Controller
     {
         $task = Task::find($id);
         
-        return view('tasks.edit',[
-                'task' => $task,
-            ]);
+        if ($task->user_id === \Auth::id()){
+            return view('tasks.edit',['task' => $task,]);
+        }
+        
+        return redirect('/');
     }
 
     /**
@@ -151,10 +133,14 @@ class TasksController extends Controller
             ]);
         
         $task = Task::find($id);
-        $task->content = $request->content;
-        $task->status = $request->status;
-        $task->save();
         
+         if ($task->user_id === \Auth::id()){
+           
+            $task->content = $request->content;
+            $task->status = $request->status;
+            $task->save();
+            
+        }
         return redirect('/');
     }
 
@@ -167,19 +153,12 @@ class TasksController extends Controller
     public function destroy($id)
     {
         
-        $task = Task::find($id);
-        $task->delete();
+        $task = \App\Task::find($id);
         
-        return redirect('/');
-    
-        
-        $micropost = \App\Tasklist::find($id);
-        
-        if (\Auth::id() === $tasklist->user_id){
-            $tasklist->delete();
+        if (\Auth::id() === $task->user_id){
+            return view('tasks.destroy', ['task' => $task,]);
         }
-        
-        return redirect()->back();
-        
+            
+            return redirect('/');
     }
 }
